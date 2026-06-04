@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0a0c10]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostPath — Security Health Dashboard</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f1117;
+            color: #e6edf3;
+        }
+        
+        .dashboard-gradient {
+            background: radial-gradient(circle at 50% -20%, rgba(0, 229, 255, 0.08), transparent 60%),
+                        linear-gradient(to bottom, #0f1117, #0b0f14);
+        }
+
+        /* Glassmorphism surfaces */
+        .glass-card {
+            background: rgba(20, 24, 38, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+        
+        .glass-card:hover {
+            border-color: rgba(0, 229, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 229, 255, 0.02);
+        }
+
+        /* Severity styles matching JetBrains CLI specs */
+        .critical { color: #ef4444; font-weight: 500; }
+        .warn { color: #f59e0b; font-weight: 500; }
+        .ok { color: #22c55e; font-weight: 500; }
+        
+        /* Monospace custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 229, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="h-full flex overflow-hidden dashboard-gradient">
+
+    <!-- LEFT SIDEBAR NAVIGATION -->
+    <aside class="w-64 bg-[#0b0f14]/80 border-r border-[#1f2633] flex flex-col justify-between p-6 flex-shrink-0 z-30">
+        <div class="space-y-8">
+            <!-- Branding -->
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#00bcd4] to-[#00e5ff] flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.4)]">
+                    <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-md font-bold tracking-widest text-[#e6edf3]">GHOST<span class="text-[#00e5ff]">PATH</span></h1>
+                    <p class="text-[9px] text-[#9aa4b2] tracking-wider font-mono">v1.2.0 // STABLE</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="space-y-1">
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold bg-[#141826] text-[#00e5ff] border-l-2 border-[#00e5ff] transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="#" onclick="runScan()" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#9aa4b2] hover:text-[#e6edf3] hover:bg-[#141826]/40 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z"/>
+                    </svg>
+                    Scan Environment
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#9aa4b2] hover:text-[#e6edf3] hover:bg-[#141826]/40 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Audit Reports
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#9aa4b2] hover:text-[#e6edf3] hover:bg-[#141826]/40 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+                    </svg>
+                    Live Monitor
+                </a>
+                <a href="#terminal-section" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#9aa4b2] hover:text-[#e6edf3] hover:bg-[#141826]/40 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"/>
+                    </svg>
+                    CLI Terminal
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#9aa4b2] hover:text-[#e6edf3] hover:bg-[#141826]/40 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Footer profile -->
+        <div class="pt-4 border-t border-[#1f2633] flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-[#141826] border border-[#00e5ff]/20 flex items-center justify-center font-bold text-[#00e5ff] text-xs">
+                AU
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-[#e6edf3]">Admin User</p>
+                <p class="text-[10px] text-[#9aa4b2]">System Administrator</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN APP CONTENT VIEW -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-y-auto z-10">
+        
+        <!-- TOP BAR -->
+        <header class="h-16 bg-[#0b0f14]/50 border-b border-[#1f2633] flex items-center justify-between px-8 backdrop-blur-md sticky top-0 z-20">
+            <!-- Search bar -->
+            <div class="relative w-96">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z"/>
+                    </svg>
+                </span>
+                <input type="text" placeholder="Search system settings & PATH folders..." 
+                       class="w-full bg-[#141826]/60 border border-[#1f2633] rounded-full py-1.5 pl-10 pr-4 text-xs text-gray-300 placeholder-gray-500 focus:outline-none focus:border-[#00e5ff] focus:ring-1 focus:ring-[#00e5ff] transition-all">
+            </div>
+
+            <!-- Profile Info & Notifications -->
+            <div class="flex items-center gap-4">
+                <button class="relative p-1.5 text-gray-400 hover:text-white rounded-full bg-[#141826] border border-[#1f2633]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                    </svg>
+                    <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+                <div class="h-8 w-[1px] bg-[#1f2633]"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-gray-400">Environment:</span>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-mono">SANDBOX</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- DASHBOARD CONTAINER -->
+        <div class="p-8 space-y-6 max-w-7xl mx-full w-full">
+            
+            <!-- Welcome Header -->
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold tracking-tight text-white">System Security Overview</h2>
+                    <p class="text-xs text-[#9aa4b2] mt-1">Real-time local binary execution integrity and environment PATH auditing.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="scanStatus" class="hidden text-xs text-[#00e5ff] font-mono tracking-widest uppercase flex items-center gap-1.5 bg-[#00e5ff]/5 px-3 py-1.5 rounded-lg border border-[#00e5ff]/20">
+                        <span class="inline-block w-1.5 h-1.5 bg-[#00e5ff] rounded-full animate-ping"></span>
+                        Scanning Environment...
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 1: METRICS SUMMARY CARDS -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Risk Score metric card -->
+                <div class="glass-card p-6 rounded-2xl flex items-center justify-between transition-all">
+                    <div class="space-y-2">
+                        <span class="text-xs font-semibold text-[#9aa4b2] tracking-wider uppercase">System Risk Score</span>
+                        <div class="flex items-baseline gap-1.5">
+                            <span id="riskScore" class="text-3xl font-bold text-white font-mono tracking-tight">0/10</span>
+                        </div>
+                        <p class="text-[10px] text-gray-500">Scale: 0 (Safe) to 10 (Critical Hijack Risk)</p>
+                    </div>
+                    <!-- Score Dial -->
+                    <div class="relative w-20 h-20 flex-shrink-0">
+                        <svg width="80" height="80" class="transform -rotate-90">
+                            <circle cx="40" cy="40" r="32" stroke="#1f2633" stroke-width="5" fill="none"/>
+                            <circle id="riskCircle" cx="40" cy="40" r="32" stroke="#00e5ff" stroke-width="5" fill="none"
+                                    stroke-dasharray="201" stroke-dashoffset="201" style="filter: drop-shadow(0 0 4px rgba(0,229,255,0.4)); transition: stroke-dashoffset 0.6s ease;"/>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center font-bold font-mono text-xs text-[#00e5ff]">
+                            RISK
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Issues metric card -->
+                <div class="glass-card p-6 rounded-2xl flex items-center justify-between transition-all">
+                    <div class="space-y-2">
+                        <span class="text-xs font-semibold text-[#9aa4b2] tracking-wider uppercase">Vulnerabilities Detected</span>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-bold text-white font-mono tracking-tight">PATH</span>
+                            <span class="text-xs px-2 py-0.5 rounded font-mono font-semibold bg-red-500/10 text-red-400 border border-red-500/20">AUDIT</span>
+                        </div>
+                        <p class="text-[10px] text-gray-500">Live checks monitoring local bin precedence</p>
+                    </div>
+                    <!-- Badge Icon -->
+                    <div class="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Scanner Status metric card -->
+                <div class="glass-card p-6 rounded-2xl flex items-center justify-between transition-all">
+                    <div class="space-y-2">
+                        <span class="text-xs font-semibold text-[#9aa4b2] tracking-wider uppercase">Live Activity Status</span>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                            <span class="text-lg font-bold text-white tracking-tight">Active Listener</span>
+                        </div>
+                        <p class="text-[10px] text-gray-500">Interval scanning every 3.0s</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.61 3.51a14.98 14.98 0 00-6.16 12.12 14.98 14.98 0 0012.14 8.74v-4.8m5.84-2.58c-1.58-1.34-3.5-2.22-5.59-2.58m0 0a14.99 14.99 0 00-5.84-4.8v4.8M9.61 3.51c-1.58 1.34-3.5 2.22-5.59 2.58"/>
+                        </svg>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ROW 2: MAIN GRID (LEFT: VISUALIZATIONS, RIGHT: DETAILED AUDIT) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Left Grid (4 columns) - SVG Donut + Actions -->
+                <div class="lg:col-span-4 space-y-6">
+                    
+                    <!-- Risk Breakdown Card -->
+                    <div class="glass-card p-6 rounded-2xl flex flex-col items-center justify-between text-center min-h-[250px] transition-all">
+                        <div class="w-full text-left">
+                            <h3 class="text-xs font-semibold text-[#9aa4b2] tracking-wider uppercase mb-4">Risk Breakdown</h3>
+                        </div>
+                        
+                        <div class="relative w-[140px] h-[140px]">
+                            <svg width="140" height="140" viewBox="0 0 140 140" class="transform -rotate-90">
+                                <circle cx="70" cy="70" r="50" stroke="#1f2633" stroke-width="12" fill="none"/>
+                                <circle id="donutSegment" cx="70" cy="70" r="50" stroke="#22c55e" stroke-width="12" fill="none" 
+                                        stroke-dasharray="314" stroke-dashoffset="0" style="transition: stroke-dashoffset 0.6s ease, stroke 0.6s ease;"/>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="donutScore" class="text-2xl font-bold tracking-tight text-white font-mono">0%</span>
+                                <span class="text-[9px] text-[#9aa4b2] uppercase tracking-widest">Risk Factor</span>
+                            </div>
+                        </div>
+
+                        <div class="w-full grid grid-cols-3 gap-2 mt-4 text-[10px] text-gray-400">
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-red-500"></span> Critical
+                            </div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-yellow-500"></span> Warn
+                            </div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-green-500"></span> Safe
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions Card -->
+                    <div class="glass-card p-6 rounded-2xl space-y-4 transition-all">
+                        <h3 class="text-xs font-semibold text-[#9aa4b2] tracking-wider uppercase">Quick Actions</h3>
+                        
+                        <div class="grid grid-cols-1 gap-2.5">
+                            <button onclick="runScan()" 
+                                    class="w-full bg-[#141826] hover:bg-[#1f2633] border border-[#1f2633] hover:border-[#00e5ff]/50 text-xs font-bold py-2.5 px-4 rounded-lg tracking-wider transition-all flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4 text-[#00e5ff]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z"/>
+                                </svg>
+                                RUN SECURITY SCAN
+                            </button>
+                            
+                            <button onclick="runExploit()" 
+                                    class="w-full border border-red-500/30 hover:border-red-500 hover:bg-red-950/20 text-red-400 text-xs font-bold py-2.5 px-4 rounded-lg tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-red-500/10">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                                </svg>
+                                EXECUTE PATH HIJACK
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Grid (8 columns) - Active Audit & Guidance -->
+                <div class="lg:col-span-8 space-y-6">
+                    
+                    <!-- Primary Advisor Card -->
+                    <div class="glass-card p-6 rounded-2xl space-y-6 transition-all min-h-[350px]">
+                        
+                        <!-- Header -->
+                        <div class="flex justify-between items-start border-b border-[#1f2633] pb-4">
+                            <div>
+                                <h3 class="text-xs font-semibold text-[#9aa4b2] tracking-wider uppercase">Active Findings & Remediation</h3>
+                                <p class="text-[11px] text-gray-500 mt-0.5">Top anomalies and copy-paste advisor instructions</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <span class="text-[10px] font-semibold bg-[#1f2633] px-2.5 py-1 rounded text-gray-300">PATH Focus</span>
+                            </div>
+                        </div>
+
+                        <!-- Active PATH Misconfigurations -->
+                        <div class="space-y-3">
+                            <span class="text-[10px] font-semibold text-[#9aa4b2] tracking-wider uppercase block">Anomalies Detected</span>
+                            <div id="issues" class="space-y-2 text-xs font-mono">
+                                <div class="ok px-3 py-2 rounded bg-green-500/5 border border-green-500/10 flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    No active vulnerabilities found. System is clean.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Phase 1: Temporary Session Remediation Buttons -->
+                        <div id="remediationPanel" class="hidden border-t border-[#1f2633] pt-4">
+                            <button id="fixPathBtn" onclick="remediatePath()" 
+                                    class="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black text-xs font-bold py-2.5 px-4 rounded-lg tracking-widest transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                                APPLY ONE-CLICK REMEDIATION (PHASE 1)
+                            </button>
+                        </div>
+
+                        <!-- Phase 1 Summary Panel -->
+                        <div id="remediationSummary" class="hidden text-xs bg-black/40 p-4 border border-green-900/30 rounded-xl space-y-2">
+                            <div class="text-[10px] font-semibold text-[#9aa4b2] tracking-wider uppercase">REMEDIATION SUMMARY (PHASE 1)</div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                <div>
+                                    <span class="text-gray-500 font-semibold block text-[10px] uppercase">Original Path</span> 
+                                    <span id="pathBefore" class="break-all font-mono text-red-400 block mt-1 bg-red-950/10 border border-red-900/20 px-2 py-1 rounded text-[11px]"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 font-semibold block text-[10px] uppercase">Clean Path</span> 
+                                    <span id="pathAfter" class="break-all font-mono text-green-400 block mt-1 bg-green-950/10 border border-green-900/20 px-2 py-1 rounded text-[11px]"></span>
+                                </div>
+                            </div>
+                            <div class="pt-2">
+                                <span class="text-gray-500 font-semibold block text-[10px] uppercase">Directories Removed</span>
+                                <ul id="removedList" class="list-disc list-inside text-yellow-500 font-mono mt-1 text-[11px] space-y-0.5"></ul>
+                            </div>
+                        </div>
+
+                        <!-- Phase 2: Permanent Shell Config Remediation (Security Advisor) -->
+                        <div id="permanentRemediationPanel" class="hidden border-t border-red-900/20 pt-4 space-y-4">
+                            <div class="text-xs font-semibold text-red-400 tracking-widest uppercase flex items-center gap-1.5">
+                                <span class="inline-block w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                                🛡️ PHASE 2: PERMANENT SYSTEM REMEDIATION REQUIRED
+                            </div>
+                            
+                            <p class="text-xs text-gray-300 leading-relaxed bg-red-950/10 p-3 rounded-lg border border-red-900/20">
+                                GhostPath sanitized the current runtime PATH temporarily. However, your permanent shell configuration files still contain dangerous entries. Reopening your terminal will restore the risk.
+                            </p>
+
+                            <div class="space-y-3 bg-black/60 p-4 border border-red-900/30 rounded-xl">
+                                <div>
+                                    <span class="text-gray-500 font-semibold text-[10px] uppercase">Detected Persistence Source</span>
+                                    <span id="permSourceFile" class="font-mono text-xs text-yellow-400 font-bold block mt-1"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 font-semibold text-[10px] uppercase">Unsafe Variable Line</span>
+                                    <span id="permUnsafeLine" class="break-all font-mono text-xs text-red-400 block mt-1 bg-red-950/20 px-2.5 py-1.5 rounded border border-red-900/20"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 font-semibold text-[10px] uppercase">Recommended Clean Code</span>
+                                    <span id="permRecommendedLine" class="break-all font-mono text-xs text-green-400 block mt-1 bg-green-950/20 px-2.5 py-1.5 rounded border border-green-900/20"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 font-semibold text-[10px] uppercase">Terminal Cleanup Command (Sed)</span>
+                                    <div class="flex items-center gap-2 mt-1.5 bg-black/40 border border-gray-800 rounded-lg p-2 font-mono">
+                                        <code id="permSedCommand" class="break-all text-xs text-[#00e5ff] flex-1"></code>
+                                        <button id="copyBtn" onclick="copySedCommand()" 
+                                                class="text-[10px] font-bold text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 hover:border-gray-500 bg-gray-900 hover:bg-gray-800 rounded-md transition-all flex-shrink-0">
+                                            COPY
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="pt-2 border-t border-gray-800">
+                                    <span class="text-gray-500 font-semibold text-[10px] uppercase">Risk Breakdown Description</span>
+                                    <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+                                        The entry <code class="text-red-400 font-mono text-xs font-bold">"."</code> allows command hijacking attacks. When you execute a command (like <code class="text-gray-300 font-mono text-xs">python3</code>), the shell searches directories from left to right. Prioritizing the current directory means local untrusted scripts in folders you enter can execute in place of standard system binaries.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ROW 3: TERMINAL & ACTIVITY LOGS (SPAN FULL WIDTH) -->
+            <div id="terminal-section" class="glass-card rounded-2xl overflow-hidden transition-all">
+                
+                <div class="bg-[#0b0f14]/90 px-6 py-3 flex justify-between items-center text-xs text-[#9aa4b2] border-b border-[#1f2633]">
+                    <div class="flex items-center gap-2 font-semibold">
+                        <span class="w-2.5 h-2.5 rounded bg-[#00e5ff]/20 flex items-center justify-center font-bold text-[#00e5ff] text-[8px]">>_</span>
+                        GHOSTPATH SECURITY CONSOLE // CLI // runtime.log
+                    </div>
+                    <div class="flex gap-1.5">
+                        <span class="w-3 h-3 bg-red-500/25 rounded-full border border-red-500/40"></span>
+                        <span class="w-3 h-3 bg-yellow-400/25 rounded-full border border-yellow-400/40"></span>
+                        <span class="w-3 h-3 bg-green-500/25 rounded-full border border-green-500/40"></span>
+                    </div>
+                </div>
+
+                <div id="terminal" class="bg-[#05070a] p-6 h-64 overflow-y-auto text-xs font-mono space-y-1.5 border-t border-[#1f2633]/20">
+                    <div class="ok">[SYSTEM] GhostPath Security Advisor loaded successfully. Dashboard is online.</div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- INTERACTION LOGIC & API BINDINGS -->
+    <script>
+        
+        function log(msg, cls = "") {
+            const term = document.getElementById("terminal");
+            if (!term) return;
+            const line = document.createElement("div");
+            line.className = cls;
+            line.textContent = msg;
+            term.appendChild(line);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function setRisk(score) {
+            const circle = document.getElementById("riskCircle");
+            if (circle) {
+                const offset = 201 - (score / 10) * 201;
+                circle.style.strokeDashoffset = offset;
+            }
+            
+            const riskText = document.getElementById("riskScore");
+            if (riskText) {
+                riskText.innerText = score + "/10";
+            }
+
+            // Dynamic Donut Chart Update (Synchronized with risk dial score!)
+            const donut = document.getElementById("donutSegment");
+            const donutText = document.getElementById("donutScore");
+            if (donut && donutText) {
+                const offset = 314 - (score / 10) * 314;
+                donut.style.strokeDashoffset = offset;
+                donutText.innerText = (score * 10) + "%";
+                
+                if (score >= 8) {
+                    donut.style.stroke = "#ef4444"; // Critical Red
+                } else if (score > 0) {
+                    donut.style.stroke = "#f59e0b"; // Warning Yellow
+                } else {
+                    donut.style.stroke = "#22c55e"; // Safe Green
+                }
+            }
+        }
+
+        function delay(ms) {
+            return new Promise(res => setTimeout(res, ms));
+        }
+
+        async function updateAuditOnly() {
+            if (window.isRemediating) return;
+
+            try {
+                const res = await fetch("/api/audit/path");
+                if (!res.ok) throw new Error("API scan failure");
+                const data = await res.json();
+
+                console.log("LIVE AUDIT:", data);
+
+                const issues = data.issues || data.data?.issues || [];
+                const risk = data.risk_score || 0;
+
+                setRisk(risk);
+
+                const issuesDiv = document.getElementById("issues");
+                if (!issuesDiv) return;
+                issuesDiv.innerHTML = "";
+
+                if (issues.length === 0) {
+                    issuesDiv.innerHTML = `
+                        <div class="ok px-3 py-2 rounded bg-green-500/5 border border-green-500/10 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            No active vulnerabilities found. System is clean.
+                        </div>`;
+                } else {
+                    issues.forEach(issue => {
+                        let cls = "ok bg-green-500/5 border-green-500/10 text-green-400";
+                        let icon = `<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+                        
+                        if (issue.startsWith("CRITICAL")) {
+                            cls = "critical bg-red-500/5 border-red-500/10 text-red-400";
+                            icon = `<svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>`;
+                        } else if (issue.startsWith("WARN")) {
+                            cls = "warn bg-yellow-500/5 border-yellow-500/10 text-yellow-400";
+                            icon = `<svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>`;
+                        }
+                        
+                        const div = document.createElement("div");
+                        div.className = `${cls} px-3 py-2 rounded border flex items-center gap-2 font-mono text-[11px]`;
+                        div.innerHTML = `${icon} ${issue}`;
+                        issuesDiv.appendChild(div);
+                    });
+                }
+
+                // Update the Fix PATH button visibility
+                updateRemediationUI(issues);
+
+                // Update the persistent shell configuration risk
+                updatePersistentRemediationUI(data);
+
+            } catch(err) {
+                console.error(err);
+                log("[ERROR] Live audit refresh failed", "critical");
+            }
+        }
+
+        async function runScan() {
+            if (window.isRemediating) return;
+
+            window.isScanning = true;
+            const scanBanner = document.getElementById('scanStatus');
+            if (scanBanner) scanBanner.style.display = 'flex';
+
+            // Hide remediation summary on fresh scans
+            const summary = document.getElementById("remediationSummary");
+            if (summary) summary.classList.add("hidden");
+
+            log("[SCAN] Initializing environment scan...", "ok");
+            await delay(200);
+            log("[SCAN] Enumerating PATH...");
+            await delay(200);
+            log("[SCAN] Checking permissions...");
+            await delay(200);
+            log("[SCAN] Detecting anomalies...");
+            await delay(200);
+
+            try {
+                const res = await fetch("/api/audit/path");
+                if (!res.ok) throw new Error("API scan failure");
+                const data = await res.json();
+
+                console.log("SCAN:", data);
+
+                const issues = data.issues || data.data?.issues || [];
+                const risk = data.risk_score || 0;
+
+                setRisk(risk);
+
+                const issuesDiv = document.getElementById("issues");
+                if (!issuesDiv) return;
+                issuesDiv.innerHTML = "";
+
+                if (issues.length === 0) {
+                    issuesDiv.innerHTML = `
+                        <div class="ok px-3 py-2 rounded bg-green-500/5 border border-green-500/10 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            No active vulnerabilities found. System is clean.
+                        </div>`;
+                    log("[OK] No vulnerabilities found", "ok");
+                } else {
+                    issues.forEach(issue => {
+                        let cls = "ok bg-green-500/5 border-green-500/10 text-green-400";
+                        let icon = `<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+                        
+                        if (issue.startsWith("CRITICAL")) {
+                            cls = "critical bg-red-500/5 border-red-500/10 text-red-400";
+                            icon = `<svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>`;
+                        } else if (issue.startsWith("WARN")) {
+                            cls = "warn bg-yellow-500/5 border-yellow-500/10 text-yellow-400";
+                            icon = `<svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>`;
+                        }
+                        
+                        const div = document.createElement("div");
+                        div.className = `${cls} px-3 py-2 rounded border flex items-center gap-2 font-mono text-[11px]`;
+                        div.innerHTML = `${icon} ${issue}`;
+                        issuesDiv.appendChild(div);
+                        
+                        log("[ISSUE] " + issue, issue.startsWith("CRITICAL") ? "critical" : "warn");
+                    });
+                }
+
+                updateRemediationUI(issues);
+                updatePersistentRemediationUI(data);
+
+                if (data.has_persistent_risk) {
+                    log("[REMEDIATION] System configuration may still be vulnerable", "warn");
+                    data.persistent_findings.forEach(finding => {
+                        log(`[GUIDANCE] Unsafe PATH likely originates from ${finding.file}`, "warn");
+                    });
+                    log("[GUIDANCE] Permanent remediation instructions generated", "ok");
+                }
+
+                log("[SCAN COMPLETE]", "ok");
+
+            } catch(err) {
+                console.error(err);
+                log("[ERROR] Scan failed", "critical");
+            }
+            window.isScanning = false;
+            if (scanBanner) scanBanner.style.display = 'none';
+        }
+
+        function updatePersistentRemediationUI(data) {
+            const hasPersistent = data.has_persistent_risk || (data.persistent_findings && data.persistent_findings.length > 0);
+            const panel = document.getElementById("permanentRemediationPanel");
+            if (!panel) return;
+            
+            if (hasPersistent && data.persistent_findings && data.persistent_findings.length > 0) {
+                const finding = data.persistent_findings[0];
+                
+                document.getElementById("permSourceFile").textContent = `${finding.file} (Line ${finding.line_number})`;
+                document.getElementById("permUnsafeLine").textContent = finding.content;
+                document.getElementById("permRecommendedLine").textContent = finding.recommended_change;
+                document.getElementById("permSedCommand").textContent = finding.command;
+                
+                panel.classList.remove("hidden");
+                
+                const copyBtn = document.getElementById("copyBtn");
+                if (copyBtn) {
+                    copyBtn.innerText = "COPY";
+                    copyBtn.disabled = false;
+                }
+            } else {
+                panel.classList.add("hidden");
+            }
+        }
+
+        function copySedCommand() {
+            const cmdText = document.getElementById("permSedCommand").textContent;
+            if (!cmdText) return;
+            
+            navigator.clipboard.writeText(cmdText).then(() => {
+                const copyBtn = document.getElementById("copyBtn");
+                if (copyBtn) {
+                    copyBtn.innerText = "COPIED!";
+                    copyBtn.style.color = "#22c55e";
+                    copyBtn.style.borderColor = "#22c55e";
+                }
+                log("[GUIDANCE] Remediation command copied to clipboard", "ok");
+                
+                setTimeout(() => {
+                    if (copyBtn) {
+                        copyBtn.innerText = "COPY";
+                        copyBtn.style.color = "";
+                        copyBtn.style.borderColor = "";
+                    }
+                }, 2000);
+            }).catch(err => {
+                console.error("Clipboard copy failed: ", err);
+                log("[ERROR] Copying command failed", "critical");
+            });
+        }
+
+        function updateRemediationUI(issues) {
+            const hasActionable = issues.some(issue => issue.startsWith("CRITICAL") || issue.startsWith("WARN"));
+            const panel = document.getElementById("remediationPanel");
+            if (!panel) return;
+            
+            if (hasActionable) {
+                panel.classList.remove("hidden");
+                const fixBtn = document.getElementById("fixPathBtn");
+                if (fixBtn && !window.isRemediating) {
+                    fixBtn.disabled = false;
+                    fixBtn.innerText = "APPLY ONE-CLICK REMEDIATION (PHASE 1)";
+                }
+            } else {
+                panel.classList.add("hidden");
+            }
+        }
+
+        async function remediatePath() {
+            if (window.isScanning || window.isRemediating) return;
+
+            window.isRemediating = true;
+            const fixBtn = document.getElementById("fixPathBtn");
+            if (fixBtn) {
+                fixBtn.disabled = true;
+                fixBtn.innerText = "Applying Phase 1 remediation...";
+            }
+
+            log("[REMEDIATION] Starting PATH cleanup...", "warn");
+
+            try {
+                const res = await fetch("/api/remediate/path", { method: "POST" });
+                if (!res.ok) throw new Error("Remediation endpoint failed");
+
+                const data = await res.json();
+                console.log("REMEDIATION RESPONSE:", data);
+
+                let removedItems = [];
+                data.actions.forEach(act => {
+                    if (act.reason === "critical") {
+                        log(`[REMEDIATION] Removed critical entry: '${act.entry}'`, "critical");
+                        removedItems.push(act.entry);
+                    } else if (act.reason === "duplicate") {
+                        log(`[REMEDIATION] Removed duplicate entry: ${act.entry}`, "warn");
+                        removedItems.push(`duplicate ${act.entry}`);
+                    }
+                });
+
+                log("[REMEDIATION] PATH sanitized successfully", "ok");
+                log("[REMEDIATION] Runtime PATH sanitized", "ok");
+                log("[REMEDIATION COMPLETE]", "ok");
+
+                // Populate and show Phase 1 summary panel
+                document.getElementById("pathBefore").textContent = data.original_path || "(empty)";
+                document.getElementById("pathAfter").textContent = data.sanitized_path || "(empty)";
+                
+                const list = document.getElementById("removedList");
+                if (list) {
+                    list.innerHTML = "";
+                    if (removedItems.length === 0) {
+                        const li = document.createElement("li");
+                        li.textContent = "none";
+                        li.className = "text-gray-500 list-none";
+                        list.appendChild(li);
+                    } else {
+                        removedItems.forEach(item => {
+                            const li = document.createElement("li");
+                            li.textContent = item;
+                            list.appendChild(li);
+                        });
+                    }
+                }
+                const summary = document.getElementById("remediationSummary");
+                if (summary) summary.classList.remove("hidden");
+
+                // Trigger a fresh scan to synchronize UI data instantly
+                await runScan();
+
+            } catch (err) {
+                console.error(err);
+                log("[ERROR] Remediation failed", "critical");
+                if (fixBtn) {
+                    fixBtn.innerText = "Remediation Failed (Retry)";
+                    fixBtn.disabled = false;
+                }
+            } finally {
+                window.isRemediating = false;
+            }
+        }
+
+        async function runExploit() {
+            log("[EXEC] Launching PATH hijack simulation...", "warn");
+
+            try {
+                const res = await fetch("/api/simulate/attack");
+                const data = await res.json();
+                console.log("EXPLOIT:", data);
+
+                const output = data.output || data.execution?.output || data.raw_output || JSON.stringify(data);
+
+                log("[SUCCESS] Exploit executed", "ok");
+                log(output, "warn");
+
+                // Refresh state after exploit execution
+                await updateAuditOnly();
+
+            } catch(err) {
+                console.error(err);
+                log("[ERROR] Exploit failed", "critical");
+            }
+        }
+
+        /* LIVE REAL-TIME REFRESH */
+        setInterval(() => {
+            if (window.isScanning) return;
+            updateAuditOnly();
+        }, 3000);
+
+        /* Initial load */
+        updateAuditOnly();
+
+    </script>
+</body>
+</html>
