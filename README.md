@@ -1,6 +1,6 @@
 # GHOSTPATH: Command Search-Order Hijacking Auditor & Threat Simulation Platform
 
-GhostPath is a DevSecOps environment integrity auditor, attack simulator, and threat correlation engine designed to detect, simulate, and remediate command search-order hijacking vulnerabilities in the local environment `PATH`. 
+GhostPath is a DevOps environment integrity auditor, attack simulator, and threat correlation engine designed to detect, simulate, and remediate command search-order hijacking vulnerabilities in the local environment `PATH`. 
 
 It features an interactive dashboard providing real-time telemetry fusion, an AI-powered incident narrative generator, and multi-stage exploit orchestration.
 
