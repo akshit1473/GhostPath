@@ -1,2 +1,2 @@
-docs/* linguist-documentation
-*.html linguist-detectable=false
+idocs/* linguist-documentation
+
